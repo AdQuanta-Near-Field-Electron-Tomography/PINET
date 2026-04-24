@@ -4,7 +4,8 @@ function summary = pinet_recreate_reference_set(varargin)
 rootDir = fileparts(mfilename('fullpath'));
 
 p = inputParser;
-addParameter(p, 'ReferencePath', 'C:\Users\Tamir\OneDrive - Technion\Documents\תארים מתקדמים\Research\1 - PINET\Conferences and Presentations\Conferences\CLEO 2024\Figures\new', @(x) ischar(x) || isstring(x));
+addParameter(p, 'ReferencePath', fullfile(rootDir, 'final_output_assets'), @(x) ischar(x) || isstring(x));
+addParameter(p, 'FigureSpec', struct([]), @(x) isstruct(x) || isempty(x));
 addParameter(p, 'SavePath', fullfile(rootDir, 'results_reference_recreated'), @(x) ischar(x) || isstring(x));
 addParameter(p, 'DataPath', fullfile(rootDir, 'data_reference_recreated'), @(x) ischar(x) || isstring(x));
 addParameter(p, 'MeasurementAngles', linspace(0, 360, 17), @(x) isnumeric(x) && isvector(x) && ~isempty(x));
@@ -32,25 +33,24 @@ addParameter(p, 'PeronaDeltaT', 0.2, @(x) isnumeric(x) && isscalar(x) && x > 0);
 addParameter(p, 'FigureNames', strings(0, 1), @(x) isstring(x) || iscellstr(x) || ischar(x));
 parse(p, varargin{:});
 opts = p.Results;
-if ~exist(opts.ReferencePath, 'dir')
-    opts.ReferencePath = fullfile(rootDir, 'approved_results_paper_reference_demo');
-end
 
 ensureDir(opts.SavePath);
 ensureDir(opts.DataPath);
 
 cm = loadDefaultColormap(rootDir);
-spec = loadReferenceSpec(opts.ReferencePath);
-if ischar(opts.FigureNames) || isstring(opts.FigureNames)
-    requestedNames = string(opts.FigureNames);
+if isempty(opts.FigureSpec)
+    spec = loadReferenceSpec(opts.ReferencePath);
 else
-    requestedNames = string(opts.FigureNames);
+    spec = opts.FigureSpec;
 end
+
+requestedNames = string(opts.FigureNames);
 requestedNames = requestedNames(:);
 if ~isempty(requestedNames) && ~(numel(requestedNames) == 1 && strlength(requestedNames) == 0)
     keepMask = ismember(string({spec.Name}), requestedNames.');
     spec = spec(keepMask);
 end
+
 gridSizes = unique([spec.GridSize]);
 gridResults = containers.Map('KeyType', 'double', 'ValueType', 'any');
 figureGridResults = containers.Map('KeyType', 'double', 'ValueType', 'any');
@@ -62,13 +62,13 @@ for idx = 1:numel(gridSizes)
     kindsNeeded = string({gridSpec.Kind});
     gridResults(gridSize) = runGridCase(gridSize, opts, cm, kindsNeeded, false);
     if any(ismember(kindsNeeded, ["simulated_real", "fourier_real", "hpf_c_fourier", "hpf_c_real", "hpf_v_fourier", "hpf_v_real"]))
-        figureGridResults(gridSize) = runGridCase(gridSize, opts, cm, kindsNeeded, true, false);
+        figureGridResults(gridSize) = runGridCase(gridSize, opts, cm, kindsNeeded, true);
         fourierGridResults(gridSize) = figureGridResults(gridSize);
     end
 end
 
 summary = struct();
-summary.referencePath = string(opts.ReferencePath);
+summary.referencePath = "";
 summary.savePath = string(opts.SavePath);
 summary.generated = strings(0, 1);
 
@@ -148,7 +148,7 @@ for idx = 1:numel(files)
     spec(idx).Name = name;
     spec(idx).GridSize = gridSize;
     spec(idx).Kind = kind;
-    header = GetSvgHeader(fullfile(files(idx).folder, files(idx).name));
+    header = getSvgHeader(fullfile(files(idx).folder, files(idx).name));
     dims = regexp(header, 'width="([0-9.]+)" height="([0-9.]+)"', 'tokens', 'once');
     if ~isempty(dims)
         spec(idx).Width = round(str2double(dims{1}));
@@ -157,19 +157,15 @@ for idx = 1:numel(files)
 end
 end
 
-function results = runGridCase(gridSize, opts, cm, kindsNeeded, useFigureSession, useFourierSession)
+function results = runGridCase(gridSize, opts, cm, kindsNeeded, useFigureSession)
 if nargin < 5
     useFigureSession = false;
 end
-if nargin < 6
-    useFourierSession = false;
-end
+
 params = struct();
 params.SavePath = opts.SavePath;
 if useFigureSession
     params.DataPath = fullfile(opts.DataPath, sprintf('grid_%d_figure_session', gridSize));
-elseif useFourierSession
-    params.DataPath = fullfile(opts.DataPath, sprintf('grid_%d_fourier_session', gridSize));
 else
     params.DataPath = fullfile(opts.DataPath, sprintf('grid_%d', gridSize));
 end
@@ -185,9 +181,6 @@ params.GridSize = gridSize;
 if useFigureSession
     params.UpperLimit = opts.FigureWindowFactor * opts.WaveLength;
     params.LowerLimit = -opts.FigureWindowFactor * opts.WaveLength;
-elseif useFourierSession
-    params.UpperLimit = opts.FourierWindowFactor * opts.WaveLength;
-    params.LowerLimit = -opts.FourierWindowFactor * opts.WaveLength;
 else
     params.UpperLimit = opts.WindowFactor * opts.WaveLength;
     params.LowerLimit = -opts.WindowFactor * opts.WaveLength;
@@ -210,101 +203,86 @@ params.HPFFactor = opts.HPFFactor;
 
 ensureDir(params.DataPath);
 
-    [x, y, k_x, k_y] = buildSimulationGrids(params);
-    [E_x, E_y, k_elec, k_free] = pinet_simulate_wire_field(x, y, params);
-    E_x_fourier = E_x;
-    E_y_fourier = E_y;
-    if useFigureSession && strcmpi(params.FieldVariant, 'static')
-        E_x_fourier = E_x + params.E0;
-    end
+[x, y, k_x, k_y] = buildSimulationGrids(params);
+[E_x, E_y, k_elec, k_free] = pinet_simulate_wire_field(x, y, params);
+E_x_fourier = E_x;
+E_y_fourier = E_y;
+if useFigureSession && strcmpi(params.FieldVariant, 'static')
+    E_x_fourier = E_x + params.E0;
+end
 
-    if strcmpi(params.GridStyle, 'cleo3')
-        F_x = fftshift(fft2(E_x_fourier));
-        F_y = fftshift(fft2(E_y_fourier));
-    else
-        F_x = fftshift(fft2(fftshift(E_x_fourier)));
-        F_y = fftshift(fft2(fftshift(E_y_fourier)));
-    end
+if strcmpi(params.GridStyle, 'cleo3')
+    F_x = fftshift(fft2(E_x_fourier));
+    F_y = fftshift(fft2(E_y_fourier));
+else
+    F_x = fftshift(fft2(fftshift(E_x_fourier)));
+    F_y = fftshift(fft2(fftshift(E_y_fourier)));
+end
 
-    F_x_HPF_c = F_x;
-    F_y_HPF_c = F_y;
-    mask_HPF_c = (k_x.^2 + k_y.^2) <= (params.HPFFactor * k_free)^2;
-    F_x_HPF_c(mask_HPF_c) = 0;
-    F_y_HPF_c(mask_HPF_c) = 0;
-    E_x_HPF_c = fftshift(ifft2(fftshift(F_x_HPF_c)));
-    E_y_HPF_c = fftshift(ifft2(fftshift(F_y_HPF_c))); %#ok<NASGU>
+F_x_HPF_c = F_x;
+F_y_HPF_c = F_y;
+mask_HPF_c = (k_x.^2 + k_y.^2) <= (params.HPFFactor * k_free)^2;
+F_x_HPF_c(mask_HPF_c) = 0;
+F_y_HPF_c(mask_HPF_c) = 0;
+E_x_HPF_c = fftshift(ifft2(fftshift(F_x_HPF_c)));
+E_y_HPF_c = fftshift(ifft2(fftshift(F_y_HPF_c))); %#ok<NASGU>
 
-    F_x_HPF_v = F_x;
-    F_y_HPF_v = F_y;
-    mask_HPF_v = (k_x.^2 + k_y.^2) <= (params.HPFFactor * k_elec)^2;
-    F_x_HPF_v(mask_HPF_v) = 0;
-    F_y_HPF_v(mask_HPF_v) = 0;
-    E_x_HPF_v = fftshift(ifft2(fftshift(F_x_HPF_v)));
-    E_y_HPF_v = fftshift(ifft2(fftshift(F_y_HPF_v))); %#ok<NASGU>
+F_x_HPF_v = F_x;
+F_y_HPF_v = F_y;
+mask_HPF_v = (k_x.^2 + k_y.^2) <= (params.HPFFactor * k_elec)^2;
+F_x_HPF_v(mask_HPF_v) = 0;
+F_y_HPF_v(mask_HPF_v) = 0;
+E_x_HPF_v = fftshift(ifft2(fftshift(F_x_HPF_v)));
+E_y_HPF_v = fftshift(ifft2(fftshift(F_y_HPF_v))); %#ok<NASGU>
 
-    needReconstruction = any(ismember(kindsNeeded, ["blurred_rec", "median_rec", "pm_rec"]));
-    if needReconstruction
-        projections = pinet_generate_projections(E_x, E_y, opts.MeasurementAngles, k_elec, params);
-        [Rec_F_x, Rec_F_y, Rec_E_x, Rec_E_y] = pinet_reconstruct_field( ...
-            projections, opts.MeasurementAngles, k_x, k_y, x, y, k_elec, params);
-        [Rec_E_x_blur, Rec_E_y_blur, Rec_E_x_med, Rec_E_y_med, pm_Rec_E_x, pm_Rec_E_y] = postprocessCombined(Rec_E_x, Rec_E_y, params);
-    else
-        projections = [];
-        Rec_F_x = [];
-        Rec_F_y = [];
-        Rec_E_x = [];
-        Rec_E_y = [];
-        Rec_E_x_blur = [];
-        Rec_E_y_blur = [];
-        Rec_E_x_med = [];
-        Rec_E_y_med = [];
-        pm_Rec_E_x = [];
-        pm_Rec_E_y = [];
-    end
+needReconstruction = any(ismember(kindsNeeded, ["blurred_rec", "median_rec", "pm_rec"]));
+if needReconstruction
+    projections = pinet_generate_projections(E_x, E_y, opts.MeasurementAngles, k_elec, params);
+    [Rec_F_x, Rec_F_y, Rec_E_x, Rec_E_y] = pinet_reconstruct_field( ...
+        projections, opts.MeasurementAngles, k_x, k_y, x, y, k_elec, params);
+    [Rec_E_x_blur, Rec_E_y_blur, Rec_E_x_med, Rec_E_y_med, pm_Rec_E_x, pm_Rec_E_y] = postprocessCombined(Rec_E_x, Rec_E_y, params);
+else
+    Rec_F_x = [];
+    Rec_F_y = [];
+    Rec_E_x = [];
+    Rec_E_y = [];
+    Rec_E_x_blur = [];
+    Rec_E_y_blur = [];
+    Rec_E_x_med = [];
+    Rec_E_y_med = [];
+    pm_Rec_E_x = [];
+    pm_Rec_E_y = [];
+end
 
-    results = struct();
-    results.grid = struct('x', x, 'y', y);
-    results.k = struct('x', k_x, 'y', k_y, 'elec', k_elec, 'free', k_free);
-    results.E_x = E_x;
-    results.E_y = E_y;
-    results.F_x = F_x;
-    results.F_y = F_y;
-    results.F_x_HPF_c = F_x_HPF_c;
-    results.F_y_HPF_c = F_y_HPF_c;
-    results.E_x_HPF_c = E_x_HPF_c;
-    results.E_y_HPF_c = E_y_HPF_c;
-    results.F_x_HPF_v = F_x_HPF_v;
-    results.F_y_HPF_v = F_y_HPF_v;
-    results.E_x_HPF_v = E_x_HPF_v;
-    results.E_y_HPF_v = E_y_HPF_v;
-    results.Rec_F_x = Rec_F_x;
-    results.Rec_F_y = Rec_F_y;
-    results.Rec_E_x = Rec_E_x;
-    results.Rec_E_y = Rec_E_y;
-    results.Rec_E_x_blur = Rec_E_x_blur;
-    results.Rec_E_y_blur = Rec_E_y_blur;
-    results.Rec_E_x_med = Rec_E_x_med;
-    results.Rec_E_y_med = Rec_E_y_med;
-    results.pm_Rec_E_x = pm_Rec_E_x;
-    results.pm_Rec_E_y = pm_Rec_E_y;
-
-    save(fullfile(params.DataPath, sprintf('grid_%d_core.mat', gridSize)), ...
-        'x', 'y', 'k_x', 'k_y', 'E_x', 'E_y', 'F_x', 'F_y', ...
-        'F_x_HPF_c', 'F_y_HPF_c', 'E_x_HPF_c', 'E_y_HPF_c', 'F_x_HPF_v', 'F_y_HPF_v', 'E_x_HPF_v', 'E_y_HPF_v', ...
-        'Rec_F_x', 'Rec_F_y', 'Rec_E_x', 'Rec_E_y', 'Rec_E_x_blur', 'Rec_E_y_blur', 'Rec_E_x_med', 'Rec_E_y_med', 'pm_Rec_E_x', 'pm_Rec_E_y', ...
-        '-v7.3');
+results = struct();
+results.grid = struct('x', x, 'y', y);
+results.k = struct('x', k_x, 'y', k_y, 'elec', k_elec, 'free', k_free);
+results.E_x = E_x;
+results.E_y = E_y;
+results.F_x = F_x;
+results.F_y = F_y;
+results.F_x_HPF_c = F_x_HPF_c;
+results.F_y_HPF_c = F_y_HPF_c;
+results.E_x_HPF_c = E_x_HPF_c;
+results.E_y_HPF_c = E_y_HPF_c;
+results.F_x_HPF_v = F_x_HPF_v;
+results.F_y_HPF_v = F_y_HPF_v;
+results.E_x_HPF_v = E_x_HPF_v;
+results.E_y_HPF_v = E_y_HPF_v;
+results.Rec_F_x = Rec_F_x;
+results.Rec_F_y = Rec_F_y;
+results.Rec_E_x = Rec_E_x;
+results.Rec_E_y = Rec_E_y;
+results.Rec_E_x_blur = Rec_E_x_blur;
+results.Rec_E_y_blur = Rec_E_y_blur;
+results.Rec_E_x_med = Rec_E_x_med;
+results.Rec_E_y_med = Rec_E_y_med;
+results.pm_Rec_E_x = pm_Rec_E_x;
+results.pm_Rec_E_y = pm_Rec_E_y;
 end
 
 function [x, y, k_x, k_y] = buildSimulationGrids(params)
-if strcmpi(params.GridStyle, 'legacy')
-    [x, y] = meshgrid(linspace(params.LowerLimit, params.UpperLimit, params.GridSize));
-    [k_x, k_y] = meshgrid( ...
-        linspace(-2 * pi * params.GridSize / (2 * (params.UpperLimit - params.LowerLimit)), ...
-                 2 * pi * params.GridSize / (2 * (params.UpperLimit - params.LowerLimit)), ...
-                 params.GridSize));
-    return;
-end
-if strcmpi(params.GridStyle, 'cleo3')
+if strcmpi(params.GridStyle, 'legacy') || strcmpi(params.GridStyle, 'cleo3')
     [x, y] = meshgrid(linspace(params.LowerLimit, params.UpperLimit, params.GridSize));
     [k_x, k_y] = meshgrid( ...
         linspace(-2 * pi * params.GridSize / (2 * (params.UpperLimit - params.LowerLimit)), ...
@@ -327,15 +305,10 @@ lowerLimit = params.LowerLimit;
              gridSize));
 end
 
-function [Rec_E_x_blur, Rec_E_y_blur, Rec_E_x_med, Rec_E_y_med, pm_Rec_E_x, pm_Rec_E_y] = ...
-    postprocessCombined(Rec_E_x, Rec_E_y, params)
+function [Rec_E_x_blur, Rec_E_y_blur, Rec_E_x_med, Rec_E_y_med, pm_Rec_E_x, pm_Rec_E_y] = postprocessCombined(Rec_E_x, Rec_E_y, params)
 if params.GaussianSigma > 0 && exist('imgaussfilt', 'file')
-    Rec_E_x_blur = complex( ...
-        imgaussfilt(real(Rec_E_x), params.GaussianSigma), ...
-        imgaussfilt(imag(Rec_E_x), params.GaussianSigma));
-    Rec_E_y_blur = complex( ...
-        imgaussfilt(real(Rec_E_y), params.GaussianSigma), ...
-        imgaussfilt(imag(Rec_E_y), params.GaussianSigma));
+    Rec_E_x_blur = complex(imgaussfilt(real(Rec_E_x), params.GaussianSigma), imgaussfilt(imag(Rec_E_x), params.GaussianSigma));
+    Rec_E_y_blur = complex(imgaussfilt(real(Rec_E_y), params.GaussianSigma), imgaussfilt(imag(Rec_E_y), params.GaussianSigma));
 else
     Rec_E_x_blur = Rec_E_x;
     Rec_E_y_blur = Rec_E_y;
@@ -406,25 +379,11 @@ if climVal > 0
     clim([-1, 1] * climVal);
 end
 
-svgPath = fullfile(savePath, [name, '.svg']);
-pngPath = fullfile(savePath, [name, '.png']);
-
-try
-    exportgraphics(fig, svgPath, 'ContentType', 'vector');
-catch
-    print(fig, '-dsvg', svgPath);
-end
-
-try
-    exportgraphics(fig, pngPath, 'Resolution', 200);
-catch
-    print(fig, '-dpng', '-r200', pngPath);
-end
-
+writeSvgPng(fig, fullfile(savePath, name));
 close(fig);
 end
 
-function exportFieldFigure(X, Y, Vx, Vy, name, savePath, cm, figWidth, figHeight, gridSize, useVectorFields, realSpaceZoomFactor, realVectorSpacingBase)
+function exportFieldFigure(X, Y, Vx, Vy, name, savePath, cm, figWidth, figHeight, ~, useVectorFields, realSpaceZoomFactor, realVectorSpacingBase)
 if ~useVectorFields
     exportHeatFigure(X, Y, Vx, name, savePath, cm, figWidth, figHeight);
     return;
@@ -454,13 +413,14 @@ if climVal > 0
     clim([-1, 1] * climVal);
 end
 hold on;
-[qX, qY, qU, qV] = buildWindowedCountNormalizedQuiver(X, Y, Vx, Vy, targetSamples, realSpaceZoomFactor);
+[Xq, Yq, Vxq, Vyq] = cropCenteredGrid(X, Y, Vx, Vy, realSpaceZoomFactor);
+[qX, qY, qU, qV] = buildCountNormalizedQuiver(Xq, Yq, Vxq, Vyq, targetSamples);
 quiver(qX, qY, qU, qV, 1, 'Color', 'c');
 writeSvgPng(fig, fullfile(savePath, name));
 close(fig);
 end
 
-function exportReconstructionFigure(X, Y, Vx, Vy, name, savePath, cm, figWidth, figHeight, gridSize, useVectorFields, vectorSpacingBase)
+function exportReconstructionFigure(X, Y, Vx, Vy, name, savePath, cm, figWidth, figHeight, ~, useVectorFields, vectorSpacingBase)
 fig = makeBaseFigure(figWidth, figHeight);
 img = imagesc(X(1,:), Y(:,1), real(Vx));
 axis equal tight;
@@ -486,42 +446,6 @@ writeSvgPng(fig, fullfile(savePath, name));
 close(fig);
 end
 
-function exportCleoFieldFigure(X, Y, Vx, Vy, name, savePath, figWidth, figHeight, gridSize)
-fig = makeBaseFigure(figWidth, figHeight);
-imagesc(X(1,:), Y(:,1), abs(Vx.^2 + Vy.^2));
-colorbar;
-colormap(loadSunsetColormap());
-title('vector field');
-xlabel(axisLabel(name, true));
-ylabel(axisLabel(name, false));
-axis equal tight;
-set(gca, 'YDir', 'normal');
-set(gca, 'FontSize', chooseFontSize(figWidth));
-if contains(name, 'HPF of w over c') || contains(name, 'HPF of w over v')
-    clim([0, 17e11]);
-end
-hold on;
-[qX, qY, qU, qV] = buildNormalizedQuiver(X, Y, Vx, Vy, gridSize);
-quiver(qX, qY, qU, qV, 1, 'Color', 'c');
-writeSvgPng(fig, fullfile(savePath, name));
-close(fig);
-end
-
-function exportCleoFourierFigure(X, Y, Vx, Vy, name, savePath, figWidth, figHeight)
-fig = makeBaseFigure(figWidth, figHeight);
-imagesc(X(1,:), Y(:,1), log(1 + abs(Vx.^2 + Vy.^2)));
-colorbar;
-colormap(loadSunsetColormap());
-title('log of abs squared');
-xlabel(axisLabel(name, true));
-ylabel(axisLabel(name, false));
-axis equal tight;
-set(gca, 'YDir', 'normal');
-set(gca, 'FontSize', chooseFontSize(figWidth));
-writeSvgPng(fig, fullfile(savePath, name));
-close(fig);
-end
-
 function exportZoomedFourierFigure(X, Y, Vx, Vy, name, savePath, figWidth, figHeight, gridSize, fourierZoomFactor, fourierUseLog, useVectorFields, fourierVectorSpacingBase)
 if nargin < 11
     fourierUseLog = false;
@@ -532,6 +456,7 @@ end
 if nargin < 13 || isempty(fourierVectorSpacingBase)
     fourierVectorSpacingBase = 25;
 end
+
 [Xz, Yz, Vxz, Vyz] = cropCenteredGrid(X, Y, Vx, Vy, fourierZoomFactor);
 ampField = abs(Vxz.^2 + Vyz.^2);
 if fourierUseLog
@@ -603,19 +528,6 @@ qU = VxNorm(rowIdx, colIdx);
 qV = VyNorm(rowIdx, colIdx);
 end
 
-function [qX, qY, qU, qV] = buildWindowedCountNormalizedQuiver(X, Y, Vx, Vy, targetSamples, zoomFactor)
-[qX, qY, qU, qV] = buildCountNormalizedQuiver(X, Y, Vx, Vy, targetSamples);
-if nargin < 6 || isempty(zoomFactor) || zoomFactor <= 1
-    return;
-end
-[xLimits, yLimits] = centeredWindowLimits(X, Y, zoomFactor);
-mask = qX >= xLimits(1) & qX <= xLimits(2) & qY >= yLimits(1) & qY <= yLimits(2);
-qX = qX(mask);
-qY = qY(mask);
-qU = qU(mask);
-qV = qV(mask);
-end
-
 function [Xz, Yz, Vxz, Vyz] = cropCenteredGrid(X, Y, Vx, Vy, zoomFactor)
 if nargin < 5 || isempty(zoomFactor) || zoomFactor <= 1
     Xz = X;
@@ -658,22 +570,6 @@ xLimits = xCenter + 0.5 * [-xSpan, xSpan];
 yLimits = yCenter + 0.5 * [-ySpan, ySpan];
 end
 
-function label = axisLabel(name, isX)
-if contains(name, 'Fourier picture')
-    if isX
-        label = 'k_x[1/m]';
-    else
-        label = 'k_y[1/m]';
-    end
-else
-    if isX
-        label = 'x[m]';
-    else
-        label = 'y[m]';
-    end
-end
-end
-
 function writeSvgPng(fig, basePath)
 svgPath = [basePath, '.svg'];
 pngPath = [basePath, '.png'];
@@ -689,7 +585,7 @@ catch
 end
 end
 
-function text = GetSvgHeader(svgPath)
+function text = getSvgHeader(svgPath)
 fid = fopen(svgPath, 'r');
 if fid < 0
     text = '';
@@ -708,9 +604,7 @@ text = strjoin(parts(~cellfun(@isempty, parts)), newline);
 end
 
 function fontSize = chooseFontSize(figWidth)
-if figWidth >= 1500
-    fontSize = 10;
-elseif figWidth >= 1200
+if figWidth >= 1200
     fontSize = 10;
 else
     fontSize = 9;

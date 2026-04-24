@@ -1,3 +1,7 @@
 data_paper_reference_demo/
 results_paper_reference_demo/
+data_reference_recreated/
+results_reference_recreated/
+data_pinet_standalone/
+results_pinet_standalone/
 *.asv
