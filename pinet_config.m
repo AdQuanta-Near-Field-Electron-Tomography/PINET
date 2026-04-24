@@ -1,5 +1,5 @@
-function cfg = pinet_final_config(rootDir)
-%PINET_FINAL_CONFIG Final self-contained configuration for the PINET export.
+function cfg = pinet_config(rootDir)
+%PINET_CONFIG Final self-contained configuration for the PINET export.
 
 if nargin < 1 || isempty(rootDir)
     rootDir = fileparts(mfilename('fullpath'));
@@ -9,29 +9,10 @@ cfg = struct();
 cfg.rootDir = string(rootDir);
 
 cfg.defaults = struct( ...
-    'SavePath', fullfile(rootDir, 'results_pinet_standalone'), ...
-    'DataPath', fullfile(rootDir, 'data_pinet_standalone'), ...
+    'SavePath', fullfile(rootDir, 'results_pinet'), ...
+    'DataPath', fullfile(rootDir, 'data_pinet'), ...
     'RealVectorSpacingBase', 350, ...
     'ReconstructionVectors', true);
-
-cfg.finalAssetDir = fullfile(rootDir, 'final_output_assets');
-cfg.lockedOutputs = { ...
-    'Blurred reconstructed E with grid size of 30.png'
-    'Fourier picture of scattered field.png'
-    'Fourier picture of the scattered field after HPF of w over c.png'
-    'Fourier picture of the scattered field after HPF of w over v.png'
-    'Median filtered reconstructed E with grid size of 200.png'
-    'Perona-Malik diffused reconstructed E with grid size of 110.png'
-    'Perona-Malik diffused reconstructed E with grid size of 200.png'
-    'Perona-Malik diffused reconstructed E with grid size of 500.png'
-    'Perona-Malik diffused reconstructed E with grid size of 80.png'
-    'Scattered electric field after HPF of w over c.png'
-    'Scattered electric field after HPF of w over c.svg'
-    'Scattered electric field after HPF of w over v.png'
-    'Scattered electric field after HPF of w over v.svg'
-    'Scattered electric field of an illuminated wire 1000.png'
-    'Scattered electric field of an illuminated wire 1000.svg' ...
-};
 
 cfg.simulatedReal = { ...
     'Scattered electric field of an illuminated wire 1000' ...

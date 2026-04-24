@@ -4,4 +4,10 @@ data_reference_recreated/
 results_reference_recreated/
 data_pinet_standalone/
 results_pinet_standalone/
+data_pinet/
+results_pinet/
+data_pinet_render/
+results_pinet_render/
+data_pinet_build/
+results_pinet_build/
 *.asv

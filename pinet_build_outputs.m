@@ -1,13 +1,12 @@
-function summary = pinet_recreate_reference_set(varargin)
-%PINET_RECREATE_REFERENCE_SET Recreate the final figure set locally.
+function summary = pinet_build_outputs(varargin)
+%PINET_BUILD_OUTPUTS Generate the configured PINET figures locally.
 
 rootDir = fileparts(mfilename('fullpath'));
 
 p = inputParser;
-addParameter(p, 'ReferencePath', fullfile(rootDir, 'final_output_assets'), @(x) ischar(x) || isstring(x));
 addParameter(p, 'FigureSpec', struct([]), @(x) isstruct(x) || isempty(x));
-addParameter(p, 'SavePath', fullfile(rootDir, 'results_reference_recreated'), @(x) ischar(x) || isstring(x));
-addParameter(p, 'DataPath', fullfile(rootDir, 'data_reference_recreated'), @(x) ischar(x) || isstring(x));
+addParameter(p, 'SavePath', fullfile(rootDir, 'results_pinet_build'), @(x) ischar(x) || isstring(x));
+addParameter(p, 'DataPath', fullfile(rootDir, 'data_pinet_build'), @(x) ischar(x) || isstring(x));
 addParameter(p, 'MeasurementAngles', linspace(0, 360, 17), @(x) isnumeric(x) && isvector(x) && ~isempty(x));
 addParameter(p, 'WaveLength', 700e-9, @(x) isnumeric(x) && isscalar(x) && x > 0);
 addParameter(p, 'WireRadiusFactor', 0.1, @(x) isnumeric(x) && isscalar(x) && x > 0);
@@ -38,11 +37,7 @@ ensureDir(opts.SavePath);
 ensureDir(opts.DataPath);
 
 cm = loadDefaultColormap(rootDir);
-if isempty(opts.FigureSpec)
-    spec = loadReferenceSpec(opts.ReferencePath);
-else
-    spec = opts.FigureSpec;
-end
+spec = opts.FigureSpec;
 
 requestedNames = string(opts.FigureNames);
 requestedNames = requestedNames(:);
@@ -68,7 +63,7 @@ for idx = 1:numel(gridSizes)
 end
 
 summary = struct();
-summary.referencePath = "";
+summary.specPath = "";
 summary.savePath = string(opts.SavePath);
 summary.generated = strings(0, 1);
 
@@ -107,54 +102,6 @@ for idx = 1:numel(spec)
 end
 
 disp(opts.SavePath);
-end
-
-function spec = loadReferenceSpec(referencePath)
-files = dir(fullfile(referencePath, '*.svg'));
-spec = repmat(struct('Name', '', 'GridSize', 1000, 'Kind', "", 'Width', 700, 'Height', 525), 1, numel(files));
-
-for idx = 1:numel(files)
-    name = erase(files(idx).name, '.svg');
-    gridToken = regexp(name, 'grid size of (\d+)', 'tokens', 'once');
-    if isempty(gridToken)
-        gridSize = 1000;
-    else
-        gridSize = str2double(gridToken{1});
-    end
-
-    if strcmp(name, 'Scattered electric field of an illuminated wire 1000')
-        kind = "simulated_real";
-        gridSize = 1000;
-    elseif strcmp(name, 'Fourier picture of scattered field')
-        kind = "fourier_real";
-    elseif strcmp(name, 'Fourier picture of the scattered field after HPF of w over c')
-        kind = "hpf_c_fourier";
-    elseif strcmp(name, 'Scattered electric field after HPF of w over c')
-        kind = "hpf_c_real";
-    elseif strcmp(name, 'Fourier picture of the scattered field after HPF of w over v')
-        kind = "hpf_v_fourier";
-    elseif strcmp(name, 'Scattered electric field after HPF of w over v')
-        kind = "hpf_v_real";
-    elseif startsWith(name, 'Blurred reconstructed E with grid size of ')
-        kind = "blurred_rec";
-    elseif startsWith(name, 'Median filtered reconstructed E with grid size of ')
-        kind = "median_rec";
-    elseif startsWith(name, 'Perona-Malik diffused reconstructed E with grid size of ')
-        kind = "pm_rec";
-    else
-        error('Unsupported reference figure name: %s', name);
-    end
-
-    spec(idx).Name = name;
-    spec(idx).GridSize = gridSize;
-    spec(idx).Kind = kind;
-    header = getSvgHeader(fullfile(files(idx).folder, files(idx).name));
-    dims = regexp(header, 'width="([0-9.]+)" height="([0-9.]+)"', 'tokens', 'once');
-    if ~isempty(dims)
-        spec(idx).Width = round(str2double(dims{1}));
-        spec(idx).Height = round(str2double(dims{2}));
-    end
-end
 end
 
 function results = runGridCase(gridSize, opts, cm, kindsNeeded, useFigureSession)
@@ -583,24 +530,6 @@ try
 catch
     print(fig, '-dpng', '-r200', pngPath);
 end
-end
-
-function text = getSvgHeader(svgPath)
-fid = fopen(svgPath, 'r');
-if fid < 0
-    text = '';
-    return;
-end
-cleanupObj = onCleanup(@() fclose(fid)); %#ok<NASGU>
-parts = cell(1, 4);
-for idx = 1:4
-    line = fgetl(fid);
-    if ~ischar(line)
-        break;
-    end
-    parts{idx} = line;
-end
-text = strjoin(parts(~cellfun(@isempty, parts)), newline);
 end
 
 function fontSize = chooseFontSize(figWidth)
