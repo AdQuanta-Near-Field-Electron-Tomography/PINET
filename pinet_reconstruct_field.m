@@ -3,6 +3,7 @@ function [Rec_F_x, Rec_F_y, Rec_E_x, Rec_E_y] = pinet_reconstruct_field( ...
 %PINET_RECONSTRUCT_FIELD Reconstruct the field from PINEM projections.
 % This is the preserved core of the reconstruction pipeline.
 
+%% Reconstruction geometry in Fourier space
 t = linspace(params.LowerLimit, params.UpperLimit, params.GridSize);
 
 nu = sqrt(k_x.^2 + k_y.^2 - k_elec^2);
@@ -13,6 +14,7 @@ meas_dirc = complex(cos(deg2rad(meas_angles)), sin(deg2rad(meas_angles)));
 theta1_dirc = complex(cos(theta1), sin(theta1));
 theta2_dirc = complex(cos(theta2), sin(theta2));
 
+%% Interpolate the first angular branch between measured projections
 [grid_meas, grid_theta] = meshgrid(meas_dirc, theta1_dirc);
 angles = angle(grid_meas ./ grid_theta);
 [~, theta1_idx_up] = min((angles >= 0) .* abs(angles) + (angles < 0) * realmax, [], 2);
@@ -30,6 +32,7 @@ weight1_down = (cos(0.5 * pi * (theta1 - theta1_down) ./ (theta1_up - theta1_dow
 weight1_up(equal_indices) = 0.5;
 weight1_down(equal_indices) = 0.5;
 
+%% Interpolate the second angular branch between measured projections
 [grid_meas, grid_theta] = meshgrid(meas_dirc, theta2_dirc);
 angles = angle(grid_meas ./ grid_theta);
 [~, theta2_idx_up] = min((angles >= 0) .* abs(angles) + (angles < 0) * realmax, [], 2);
@@ -52,6 +55,7 @@ recFxFile = fullfile(params.DataPath, ...
 recFyFile = fullfile(params.DataPath, ...
     sprintf('Rec_F_y_grid_%d_dirs_%d.mat', params.GridSize, params.NumOfDirections));
 
+%% Reconstruct the Fourier components of the field
 if exist(recFxFile, 'file') && exist(recFyFile, 'file') && ~params.Overwrite
     Rec_F_x = load(recFxFile, 'Rec_F_x').Rec_F_x;
     Rec_F_y = load(recFyFile, 'Rec_F_y').Rec_F_y;
@@ -70,6 +74,7 @@ else
     save(recFyFile, 'Rec_F_y');
 end
 
+%% Keep the physical support and transform back to real space
 mask = (k_x.^2 + k_y.^2) > k_elec^2;
 Rec_F_x(~mask) = 0;
 Rec_F_y(~mask) = 0;

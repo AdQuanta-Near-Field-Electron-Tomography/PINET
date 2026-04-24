@@ -1,9 +1,11 @@
 function out = pinet_render_outputs(varargin)
 %PINET_RENDER_OUTPUTS Generate the configured PINET output set.
 
+%% Load the figure plan
 rootDir = fileparts(mfilename('fullpath'));
 cfg = pinet_config(rootDir);
 
+%% Parse runtime options
 p = inputParser;
 addParameter(p, 'SavePath', fullfile(rootDir, 'results_pinet_render'), @(x) ischar(x) || isstring(x));
 addParameter(p, 'DataPath', fullfile(rootDir, 'data_pinet_render'), @(x) ischar(x) || isstring(x));
@@ -12,9 +14,11 @@ addParameter(p, 'ReconstructionVectors', cfg.defaults.ReconstructionVectors, @(x
 parse(p, varargin{:});
 opts = p.Results;
 
+%% Prepare output folders
 ensureDir(opts.SavePath);
 ensureDir(opts.DataPath);
 
+%% Render the simulated real-space figures
 runConfiguredBranch(cfg, opts, ...
     'DataPath', fullfile(opts.DataPath, cfg.branch.simulatedReal.DataSubdir), ...
     'UseVectorFields', cfg.branch.simulatedReal.UseVectorFields, ...
@@ -24,6 +28,7 @@ runConfiguredBranch(cfg, opts, ...
     'RealSpaceZoomFactor', cfg.branch.simulatedReal.RealSpaceZoomFactor, ...
     'FigureNames', cfg.branch.simulatedReal.FigureNames);
 
+%% Render the field and Fourier figures
 runConfiguredBranch(cfg, opts, ...
     'DataPath', fullfile(opts.DataPath, cfg.branch.fieldAndFourier.DataSubdir), ...
     'UseVectorFields', cfg.branch.fieldAndFourier.UseVectorFields, ...
@@ -37,11 +42,13 @@ runConfiguredBranch(cfg, opts, ...
     'FourierVectorSpacingBase', cfg.branch.fieldAndFourier.FourierVectorSpacingBase, ...
     'FigureNames', cfg.branch.fieldAndFourier.FigureNames);
 
+%% Render the reconstruction figures
 runConfiguredBranch(cfg, opts, ...
     'DataPath', fullfile(opts.DataPath, cfg.branch.reconstruction.DataSubdir), ...
     'UseVectorFields', opts.ReconstructionVectors, ...
     'FigureNames', cfg.branch.reconstruction.FigureNames);
 
+%% Return a short run summary
 out = struct();
 out.savePath = string(opts.SavePath);
 out.dataPath = string(opts.DataPath);
@@ -50,6 +57,7 @@ disp(out.savePath);
 end
 
 function runConfiguredBranch(cfg, opts, varargin)
+%RUNCONFIGUREDBRANCH Execute one configured branch of the output set.
 pinet_build_outputs( ...
     'FigureSpec', cfg.figureSpec, ...
     'SavePath', opts.SavePath, ...

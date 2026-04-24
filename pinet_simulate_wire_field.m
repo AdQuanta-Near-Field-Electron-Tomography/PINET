@@ -2,12 +2,14 @@ function [E_x, E_y, k_elec, k_free] = pinet_simulate_wire_field(x, y, params)
 %PINET_SIMULATE_WIRE_FIELD Simulate the analytic scattered wire field.
 % This keeps the same equations used in PINET_example.m.
 
+%% Convert the beam and optical parameters to wave numbers
 electon_energy_rest = params.RestEnergyKeV;
 electron_energy = params.ElectronEnergyKeV;
 v_over_c = sqrt(1 - (electon_energy_rest / (electron_energy + electon_energy_rest))^2);
 k_free = 2 * pi / params.WaveLength;
 k_elec = k_free / v_over_c;
 
+%% Evaluate the field inside and outside the wire
 E_x = zeros(size(x));
 E_y = zeros(size(x));
 
@@ -19,6 +21,7 @@ phi = atan2(y, x);
 condition1 = r_mag <= params.WireRadius;
 condition2 = (r_mag <= field_limit) & (r_mag > params.WireRadius);
 
+%% Choose between the static and phase-bearing field variants
 useStaticVariant = isfield(params, 'FieldVariant') && strcmpi(params.FieldVariant, 'static');
 if useStaticVariant
     E_x(condition1) = params.E0 * (2 * params.Epsilon2 / (params.Epsilon1 + params.Epsilon2) - 1);

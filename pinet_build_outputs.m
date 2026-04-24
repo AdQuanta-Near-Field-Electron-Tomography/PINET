@@ -1,6 +1,7 @@
 function summary = pinet_build_outputs(varargin)
 %PINET_BUILD_OUTPUTS Generate the configured PINET figures locally.
 
+%% Parse build options
 rootDir = fileparts(mfilename('fullpath'));
 
 p = inputParser;
@@ -33,6 +34,7 @@ addParameter(p, 'FigureNames', strings(0, 1), @(x) isstring(x) || iscellstr(x) |
 parse(p, varargin{:});
 opts = p.Results;
 
+%% Prepare output folders and figure specification
 ensureDir(opts.SavePath);
 ensureDir(opts.DataPath);
 
@@ -46,6 +48,7 @@ if ~isempty(requestedNames) && ~(numel(requestedNames) == 1 && strlength(request
     spec = spec(keepMask);
 end
 
+%% Precompute each grid size once
 gridSizes = unique([spec.GridSize]);
 gridResults = containers.Map('KeyType', 'double', 'ValueType', 'any');
 figureGridResults = containers.Map('KeyType', 'double', 'ValueType', 'any');
@@ -67,6 +70,7 @@ summary.specPath = "";
 summary.savePath = string(opts.SavePath);
 summary.generated = strings(0, 1);
 
+%% Export the requested figures
 for idx = 1:numel(spec)
     item = spec(idx);
     results = gridResults(item.GridSize);
@@ -105,6 +109,7 @@ disp(opts.SavePath);
 end
 
 function results = runGridCase(gridSize, opts, cm, kindsNeeded, useFigureSession)
+%% Build one simulation case
 if nargin < 5
     useFigureSession = false;
 end
@@ -150,6 +155,7 @@ params.HPFFactor = opts.HPFFactor;
 
 ensureDir(params.DataPath);
 
+%% Simulate the field on the real-space and Fourier grids
 [x, y, k_x, k_y] = buildSimulationGrids(params);
 [E_x, E_y, k_elec, k_free] = pinet_simulate_wire_field(x, y, params);
 E_x_fourier = E_x;
@@ -166,6 +172,7 @@ else
     F_y = fftshift(fft2(fftshift(E_y_fourier)));
 end
 
+%% Apply the high-pass filters used in the exported figures
 F_x_HPF_c = F_x;
 F_y_HPF_c = F_y;
 mask_HPF_c = (k_x.^2 + k_y.^2) <= (params.HPFFactor * k_free)^2;
@@ -182,9 +189,11 @@ F_y_HPF_v(mask_HPF_v) = 0;
 E_x_HPF_v = fftshift(ifft2(fftshift(F_x_HPF_v)));
 E_y_HPF_v = fftshift(ifft2(fftshift(F_y_HPF_v))); %#ok<NASGU>
 
+%% Reconstruction pipeline: projections -> Fourier reconstruction -> filtered images
 needReconstruction = any(ismember(kindsNeeded, ["blurred_rec", "median_rec", "pm_rec"]));
 if needReconstruction
     projections = pinet_generate_projections(E_x, E_y, opts.MeasurementAngles, k_elec, params);
+    % This is the main reconstruction step.
     [Rec_F_x, Rec_F_y, Rec_E_x, Rec_E_y] = pinet_reconstruct_field( ...
         projections, opts.MeasurementAngles, k_x, k_y, x, y, k_elec, params);
     [Rec_E_x_blur, Rec_E_y_blur, Rec_E_x_med, Rec_E_y_med, pm_Rec_E_x, pm_Rec_E_y] = postprocessCombined(Rec_E_x, Rec_E_y, params);
@@ -229,6 +238,7 @@ results.pm_Rec_E_y = pm_Rec_E_y;
 end
 
 function [x, y, k_x, k_y] = buildSimulationGrids(params)
+%% Build the spatial and Fourier sampling grids
 if strcmpi(params.GridStyle, 'legacy') || strcmpi(params.GridStyle, 'cleo3')
     [x, y] = meshgrid(linspace(params.LowerLimit, params.UpperLimit, params.GridSize));
     [k_x, k_y] = meshgrid( ...
@@ -249,10 +259,11 @@ lowerLimit = params.LowerLimit;
 [k_x, k_y] = meshgrid( ...
     linspace(-2 * pi * (gridSize + 1) / (2 * (upperLimit - lowerLimit)), ...
              2 * pi * (gridSize - 1) / (2 * (upperLimit - lowerLimit)), ...
-             gridSize));
+              gridSize));
 end
 
 function [Rec_E_x_blur, Rec_E_y_blur, Rec_E_x_med, Rec_E_y_med, pm_Rec_E_x, pm_Rec_E_y] = postprocessCombined(Rec_E_x, Rec_E_y, params)
+%% Post-process the reconstructed field
 if params.GaussianSigma > 0 && exist('imgaussfilt', 'file')
     Rec_E_x_blur = complex(imgaussfilt(real(Rec_E_x), params.GaussianSigma), imgaussfilt(imag(Rec_E_x), params.GaussianSigma));
     Rec_E_y_blur = complex(imgaussfilt(real(Rec_E_y), params.GaussianSigma), imgaussfilt(imag(Rec_E_y), params.GaussianSigma));
@@ -279,6 +290,7 @@ pm_Rec_E_y = peronaMalikDiffusion(Rec_E_y_med, params.PeronaIterations, params.P
 end
 
 function diffusedImage = peronaMalikDiffusion(image, numIterations, k, delta_t)
+%% Diffuse the real and imaginary parts separately
 realPart = peronaMalikReal(real(image), numIterations, k, delta_t);
 imagPart = peronaMalikReal(imag(image), numIterations, k, delta_t);
 diffusedImage = complex(realPart, imagPart);

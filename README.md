@@ -13,6 +13,9 @@ Minimal user-facing MATLAB package for the final PINET figure set.
 - `pinet_reconstruct_field.m` - reconstruction core
 - `cm.mat`, `sunset_cm.mat` - bundled colormaps
 
+The reconstruction path is:
+`pinet_run -> pinet_render_outputs -> pinet_build_outputs -> pinet_reconstruct_field`
+
 ## Run
 
 In MATLAB, open this folder and run:
