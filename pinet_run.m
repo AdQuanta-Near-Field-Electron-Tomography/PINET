@@ -1,5 +1,5 @@
 function out = pinet_run(varargin)
-%PINET_RUN Export the final PINET figure set.
+%PINET_RUN Generate the PINET example outputs.
 
 %% Load the package configuration
 rootDir = fileparts(mfilename('fullpath'));

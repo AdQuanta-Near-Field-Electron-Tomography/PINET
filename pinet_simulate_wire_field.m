@@ -1,6 +1,5 @@
 function [E_x, E_y, k_elec, k_free] = pinet_simulate_wire_field(x, y, params)
 %PINET_SIMULATE_WIRE_FIELD Simulate the analytic scattered wire field.
-% This keeps the same equations used in PINET_example.m.
 
 %% Convert the beam and optical parameters to wave numbers
 electon_energy_rest = params.RestEnergyKeV;

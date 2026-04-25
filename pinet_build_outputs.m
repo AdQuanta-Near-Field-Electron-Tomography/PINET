@@ -1,5 +1,5 @@
 function summary = pinet_build_outputs(varargin)
-%PINET_BUILD_OUTPUTS Generate the configured PINET figures locally.
+%PINET_BUILD_OUTPUTS Generate the configured PINET figures.
 
 %% Parse build options
 rootDir = fileparts(mfilename('fullpath'));

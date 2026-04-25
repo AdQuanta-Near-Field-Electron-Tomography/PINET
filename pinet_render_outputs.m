@@ -1,5 +1,5 @@
 function out = pinet_render_outputs(varargin)
-%PINET_RENDER_OUTPUTS Generate the configured PINET output set.
+%PINET_RENDER_OUTPUTS Generate the configured PINET outputs.
 
 %% Load the figure plan
 rootDir = fileparts(mfilename('fullpath'));

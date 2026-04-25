@@ -1,10 +1,10 @@
 function projections = pinet_generate_projections(E_x, E_y, meas_angles, k_elec, params)
-%PINET_GENERATE_PROJECTIONS Generate or reuse cached PINEM projections.
+%PINET_GENERATE_PROJECTIONS Generate or reuse cached projection measurements.
 
-%% The validated projection step depends on imrotate
+%% This projection step depends on imrotate
 if ~exist('imrotate', 'file')
     error('pinet_generate_projections:MissingImrotate', ...
-        'imrotate is required because the validated projection step depends on it.');
+        'imrotate is required for the projection step.');
 end
 
 %% Reuse cached projections when available

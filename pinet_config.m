@@ -1,5 +1,5 @@
 function cfg = pinet_config(rootDir)
-%PINET_CONFIG Final self-contained configuration for the PINET export.
+%PINET_CONFIG Configuration for the PINET example package.
 
 %% Resolve the package root
 if nargin < 1 || isempty(rootDir)
@@ -38,7 +38,7 @@ cfg.reconstructionSet = { ...
     'Perona-Malik diffused reconstructed E with grid size of 500' ...
 };
 
-%% Exact exported figure specification
+%% Exported figure specification
 cfg.figureSpec = [ ...
     makeSpec('Scattered electric field of an illuminated wire 1000', 1000, "simulated_real", 1212, 515)
     makeSpec('Fourier picture of scattered field', 1000, "fourier_real", 1522, 660)

@@ -1,7 +1,7 @@
 function [Rec_F_x, Rec_F_y, Rec_E_x, Rec_E_y] = pinet_reconstruct_field( ...
     projections, meas_angles, k_x, k_y, x, y, k_elec, params)
-%PINET_RECONSTRUCT_FIELD Reconstruct the field from PINEM projections.
-% This is the preserved core of the reconstruction pipeline.
+%PINET_RECONSTRUCT_FIELD Reconstruct the field from the projection measurements.
+% This function contains the core Fourier-space reconstruction.
 
 %% Reconstruction geometry in Fourier space
 t = linspace(params.LowerLimit, params.UpperLimit, params.GridSize);
