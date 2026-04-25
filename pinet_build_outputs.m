@@ -77,7 +77,7 @@ for idx = 1:numel(spec)
 
     switch item.Kind
         case "simulated_real"
-            results = figureGridResults(item.GridSize);
+            results = gridResults(item.GridSize);
             exportFieldFigure(results.grid.x, results.grid.y, results.E_x, results.E_y, item.Name, opts.SavePath, cm, item.Width, item.Height, item.GridSize, opts.UseVectorFields, opts.RealSpaceZoomFactor, opts.RealVectorSpacingBase);
         case "fourier_real"
             results = fourierGridResults(item.GridSize);
@@ -86,13 +86,13 @@ for idx = 1:numel(spec)
             results = fourierGridResults(item.GridSize);
             exportZoomedFourierFigure(results.k.x, results.k.y, results.F_x_HPF_c, results.F_y_HPF_c, item.Name, opts.SavePath, item.Width, item.Height, item.GridSize, opts.FourierZoomFactor, opts.FourierUseLog, opts.FourierVectors, opts.FourierVectorSpacingBase);
         case "hpf_c_real"
-            results = figureGridResults(item.GridSize);
+            results = gridResults(item.GridSize);
             exportFieldFigure(results.grid.x, results.grid.y, results.E_x_HPF_c, results.E_y_HPF_c, item.Name, opts.SavePath, cm, item.Width, item.Height, item.GridSize, opts.UseVectorFields, opts.RealSpaceZoomFactor, opts.RealVectorSpacingBase);
         case "hpf_v_fourier"
             results = fourierGridResults(item.GridSize);
             exportZoomedFourierFigure(results.k.x, results.k.y, results.F_x_HPF_v, results.F_y_HPF_v, item.Name, opts.SavePath, item.Width, item.Height, item.GridSize, opts.FourierZoomFactor, opts.FourierUseLog, opts.FourierVectors, opts.FourierVectorSpacingBase);
         case "hpf_v_real"
-            results = figureGridResults(item.GridSize);
+            results = gridResults(item.GridSize);
             exportFieldFigure(results.grid.x, results.grid.y, results.E_x_HPF_v, results.E_y_HPF_v, item.Name, opts.SavePath, cm, item.Width, item.Height, item.GridSize, opts.UseVectorFields, opts.RealSpaceZoomFactor, opts.RealVectorSpacingBase);
         case "blurred_rec"
             exportReconstructionFigure(results.grid.x, results.grid.y, results.Rec_E_x_blur, results.Rec_E_y_blur, item.Name, opts.SavePath, cm, item.Width, item.Height, item.GridSize, opts.UseVectorFields, opts.RealVectorSpacingBase);
@@ -347,33 +347,27 @@ if ~useVectorFields
     exportHeatFigure(X, Y, Vx, name, savePath, cm, figWidth, figHeight);
     return;
 end
-if nargin < 12 || isempty(realSpaceZoomFactor)
-    realSpaceZoomFactor = 25;
-end
 if nargin < 13 || isempty(realVectorSpacingBase)
     realVectorSpacingBase = 500;
 end
 targetSamples = max(14, round(1.4 * sqrt(realVectorSpacingBase)));
 
 fig = makeBaseFigure(figWidth, figHeight);
-img = imagesc(X(1, :), Y(:, 1), real(Vx));
+imagesc(X(1, :), Y(:, 1), real(Vx));
 axis equal tight;
 set(gca, 'YDir', 'normal');
 colorbar;
 colormap(cm);
-title(sprintf('vector field and real x of %s', name), 'Interpreter', 'none');
-xlabel('x[m]');
-ylabel('y[m]');
+xlabel('x [m]');
+ylabel('y [m]');
+title(name, 'Interpreter', 'none');
 set(gca, 'FontSize', chooseFontSize(figWidth));
-set(img, 'Interpolation', 'bilinear');
-applyCenteredWindow(gca, X, Y, realSpaceZoomFactor);
 climVal = prctile(abs(real(Vx(:))), 95);
 if climVal > 0
     clim([-1, 1] * climVal);
 end
 hold on;
-[Xq, Yq, Vxq, Vyq] = cropCenteredGrid(X, Y, Vx, Vy, realSpaceZoomFactor);
-[qX, qY, qU, qV] = buildCountNormalizedQuiver(Xq, Yq, Vxq, Vyq, targetSamples);
+[qX, qY, qU, qV] = buildCountNormalizedQuiver(X, Y, Vx, Vy, targetSamples);
 quiver(qX, qY, qU, qV, 1, 'Color', 'c');
 writeSvgPng(fig, fullfile(savePath, name));
 close(fig);
@@ -387,8 +381,8 @@ set(gca, 'YDir', 'normal');
 colorbar;
 colormap(cm);
 title(name, 'Interpreter', 'none');
-xlabel('x[m]');
-ylabel('y[m]');
+xlabel('x [m]');
+ylabel('y [m]');
 set(gca, 'FontSize', chooseFontSize(figWidth));
 set(img, 'Interpolation', 'bilinear');
 climVal = prctile(abs(real(Vx(:))), 95);
@@ -432,9 +426,9 @@ axis equal tight;
 set(gca, 'YDir', 'normal');
 colorbar;
 colormap(loadSunsetColormap());
-title(sprintf('vector field and %s of %s', plotTitle, name), 'Interpreter', 'none');
-xlabel('k_x[1/m]');
-ylabel('k_y[1/m]');
+title(name, 'Interpreter', 'none');
+xlabel('k_x [1/m]');
+ylabel('k_y [1/m]');
 set(gca, 'FontSize', chooseFontSize(figWidth));
 if useVectorFields
     hold on;
@@ -538,9 +532,11 @@ catch
     exportgraphics(fig, svgPath, 'ContentType', 'vector');
 end
 try
-    exportgraphics(fig, pngPath, 'Resolution', 200);
+    drawnow;
+    set(fig, 'InvertHardcopy', 'off');
+    print(fig, pngPath, '-dpng', '-r200', '-opengl');
 catch
-    print(fig, '-dpng', '-r200', pngPath);
+    exportgraphics(fig, pngPath, 'Resolution', 200);
 end
 end
 

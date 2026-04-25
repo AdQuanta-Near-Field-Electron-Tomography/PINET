@@ -18,40 +18,40 @@ cfg.defaults = struct( ...
 
 %% Figure groups
 cfg.simulatedReal = { ...
-    'Scattered electric field of an illuminated wire 1000' ...
+    'Simulated scattered field from illuminated wire' ...
 };
 
 cfg.fieldAndFourier = { ...
-    'Fourier picture of scattered field'
-    'Fourier picture of the scattered field after HPF of w over c'
-    'Fourier picture of the scattered field after HPF of w over v'
-    'Scattered electric field after HPF of w over c'
-    'Scattered electric field after HPF of w over v' ...
+    'Fourier magnitude of scattered field'
+    'Fourier magnitude after high-pass filtering (omega over c)'
+    'Fourier magnitude after high-pass filtering (omega over v)'
+    'Scattered field after high-pass filtering (omega over c)'
+    'Scattered field after high-pass filtering (omega over v)' ...
 };
 
 cfg.reconstructionSet = { ...
-    'Blurred reconstructed E with grid size of 30'
-    'Median filtered reconstructed E with grid size of 200'
-    'Perona-Malik diffused reconstructed E with grid size of 80'
-    'Perona-Malik diffused reconstructed E with grid size of 110'
-    'Perona-Malik diffused reconstructed E with grid size of 200'
-    'Perona-Malik diffused reconstructed E with grid size of 500' ...
+    'Blurred PINET reconstruction (grid 30)'
+    'Median-filtered PINET reconstruction (grid 200)'
+    'Perona-Malik PINET reconstruction (grid 80)'
+    'Perona-Malik PINET reconstruction (grid 110)'
+    'Perona-Malik PINET reconstruction (grid 200)'
+    'Perona-Malik PINET reconstruction (grid 500)' ...
 };
 
 %% Exported figure specification
 cfg.figureSpec = [ ...
-    makeSpec('Scattered electric field of an illuminated wire 1000', 1000, "simulated_real", 1212, 515)
-    makeSpec('Fourier picture of scattered field', 1000, "fourier_real", 1522, 660)
-    makeSpec('Fourier picture of the scattered field after HPF of w over c', 1000, "hpf_c_fourier", 1522, 660)
-    makeSpec('Fourier picture of the scattered field after HPF of w over v', 1000, "hpf_v_fourier", 1522, 660)
-    makeSpec('Scattered electric field after HPF of w over c', 1000, "hpf_c_real", 1522, 660)
-    makeSpec('Scattered electric field after HPF of w over v', 1000, "hpf_v_real", 1212, 515)
-    makeSpec('Blurred reconstructed E with grid size of 30', 30, "blurred_rec", 1215, 517)
-    makeSpec('Median filtered reconstructed E with grid size of 200', 200, "median_rec", 1212, 515)
-    makeSpec('Perona-Malik diffused reconstructed E with grid size of 80', 80, "pm_rec", 1215, 517)
-    makeSpec('Perona-Malik diffused reconstructed E with grid size of 110', 110, "pm_rec", 1215, 517)
-    makeSpec('Perona-Malik diffused reconstructed E with grid size of 200', 200, "pm_rec", 1212, 515)
-    makeSpec('Perona-Malik diffused reconstructed E with grid size of 500', 500, "pm_rec", 1215, 517) ...
+    makeSpec('Simulated scattered field from illuminated wire', 1000, "simulated_real", 1212, 515)
+    makeSpec('Fourier magnitude of scattered field', 1000, "fourier_real", 1522, 660)
+    makeSpec('Fourier magnitude after high-pass filtering (omega over c)', 1000, "hpf_c_fourier", 1522, 660)
+    makeSpec('Fourier magnitude after high-pass filtering (omega over v)', 1000, "hpf_v_fourier", 1522, 660)
+    makeSpec('Scattered field after high-pass filtering (omega over c)', 1000, "hpf_c_real", 1522, 660)
+    makeSpec('Scattered field after high-pass filtering (omega over v)', 1000, "hpf_v_real", 1212, 515)
+    makeSpec('Blurred PINET reconstruction (grid 30)', 30, "blurred_rec", 1215, 517)
+    makeSpec('Median-filtered PINET reconstruction (grid 200)', 200, "median_rec", 1212, 515)
+    makeSpec('Perona-Malik PINET reconstruction (grid 80)', 80, "pm_rec", 1215, 517)
+    makeSpec('Perona-Malik PINET reconstruction (grid 110)', 110, "pm_rec", 1215, 517)
+    makeSpec('Perona-Malik PINET reconstruction (grid 200)', 200, "pm_rec", 1212, 515)
+    makeSpec('Perona-Malik PINET reconstruction (grid 500)', 500, "pm_rec", 1215, 517) ...
 ];
 
 %% Branch-level settings for the three output families
